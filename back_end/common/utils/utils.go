@@ -6,9 +6,7 @@ import (
 	"alto_server/constants"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os/exec"
+	"net"
 	"strings"
 	"time"
 	"unicode"
@@ -209,40 +207,24 @@ func JsonToString(input []byte) string {
 }
 
 func FindLocalIp(matchPattern string) string {
-	var finalIp string
-	cmd := exec.Command("cmd", "/c", "ipconfig")
-	if out, err := cmd.StdoutPipe(); err != nil {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
 		fmt.Println(err)
-	} else {
-		defer out.Close()
-		if err := cmd.Start(); err != nil {
-			fmt.Println(err)
+		return ""
+	}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok || ipNet.IP.IsLoopback() {
+			continue
 		}
-		if opBytes, err := ioutil.ReadAll(out); err != nil {
-			log.Fatal(err)
-		} else {
-			str := string(opBytes)
-			var strs = strings.Split(str, "\r\n")
-			if 0 != len(strs) {
-				for _, value := range strs {
-
-					vidx := strings.Index(value, "IPv4")
-					//说明已经找到该ip
-					if vidx != -1 {
-
-						ip4lines := strings.Split(value, ":")
-						if len(ip4lines) == 2 {
-							ip4str := ip4lines[1]
-							finalIp = strings.TrimSpace(ip4str)
-							fmt.Printf(finalIp + "\r\n")
-							if strings.Contains(ip4str, matchPattern) {
-								fmt.Printf(finalIp + "\r\n")
-								return finalIp
-							}
-						}
-					}
-				}
-			}
+		v4 := ipNet.IP.To4()
+		if v4 == nil {
+			continue
+		}
+		ip := v4.String()
+		if matchPattern == "" || strings.Contains(ip, matchPattern) {
+			fmt.Println(ip)
+			return ip
 		}
 	}
 	return ""
