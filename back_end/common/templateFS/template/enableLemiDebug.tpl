@@ -1,0 +1,16 @@
+  <edit-config>
+    <target>
+      <running/>
+    </target>
+    <config>
+      <system xmlns="urn:ietf:params:xml:ns:yang:ietf-system">
+        <management xmlns="http://www.nokia.com/Fixed-Networks/BBA/yang/nokia-ietf-system-aug">
+          <debug>
+            <lemi>
+              <enable>true</enable>
+            </lemi>
+          </debug>
+        </management>
+      </system>
+    </config>
+  </edit-config>

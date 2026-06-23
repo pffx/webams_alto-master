@@ -1,0 +1,35 @@
+<edit-config>
+    <target>            
+	  <candidate/>
+    </target>
+    <config>
+            <configure xmlns="urn:nokia.com:sros:ns:yang:sr:conf">
+                <card>
+                    <slot-number>1</slot-number>
+                    <mda>
+                        <mda-slot>{{.LtIndexAdd8}}</mda-slot>
+                        <admin-state>enable</admin-state>
+                        <mda-type>{{.ModelName}}</mda-type>
+                        <mda-name>{{.ModelName}}-{{.LtIndex}}</mda-name>
+                    </mda>
+                </card> 
+                <port>
+                    <port-id>1/{{.LtIndexAdd8}}/1</port-id>
+                    <admin-state>enable</admin-state>
+                    <description>40/80/100/200 Gig Ethernet LT</description>
+                    <ethernet>
+                        <autonegotiate>true</autonegotiate>
+                        <dot1q-etype>0x8100</dot1q-etype>
+                        <mode>access</mode>
+                        <encap-type>dot1q</encap-type>
+                        <category>residential</category>
+                        <remark>false</remark>
+                        <use-vlan-dot1q-etype>false</use-vlan-dot1q-etype>
+                        <hold-time>
+                            <units>seconds</units>
+                        </hold-time>
+                    </ethernet>
+                </port>
+            </configure>
+        </config>
+</edit-config>

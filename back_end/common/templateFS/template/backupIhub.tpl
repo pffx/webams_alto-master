@@ -1,0 +1,5 @@
+<get-config>
+<source>
+<running/>
+</source>
+</get-config>

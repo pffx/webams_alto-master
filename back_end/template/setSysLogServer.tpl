@@ -1,0 +1,26 @@
+  <edit-config>
+    <target>
+      <running/>
+    </target>
+    <config>
+    <syslog xmlns="urn:ietf:params:xml:ns:yang:ietf-syslog">
+    <actions>
+      <remote>
+        <destination>
+          <name>logcollector1</name>
+          <udp>
+            <address>135.242.61.119</address>
+            <port>514</port>
+          </udp>
+          <facility-filter>
+            <facility-list>
+              <facility>all</facility>
+              <severity>all</severity>
+            </facility-list>
+          </facility-filter>
+        </destination>
+      </remote>
+    </actions>
+    </syslog>
+    </config>
+  </edit-config>

@@ -1,0 +1,58 @@
+module alto_server
+
+go 1.18
+
+require (
+	github.com/Juniper/go-netconf v0.1.1
+	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
+	github.com/casbin/casbin v1.9.1
+	github.com/elliotchance/sshtunnel v1.4.0
+	github.com/gin-contrib/static v0.0.1
+	github.com/gin-gonic/gin v1.9.1
+	github.com/go-ini/ini v1.66.6
+	github.com/go-xmlfmt/xmlfmt v1.1.2
+	github.com/golang-jwt/jwt/v4 v4.4.1
+	github.com/gorilla/websocket v1.5.1
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/robfig/cron v1.2.0
+	github.com/sirupsen/logrus v1.8.1
+	golang.org/x/crypto v0.14.0
+	gorm.io/driver/sqlite v1.5.4
+	gorm.io/gorm v1.25.5
+)
+
+require (
+	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible // indirect
+	github.com/bytedance/sonic v1.9.1 // indirect
+	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
+	github.com/gin-contrib/sse v0.1.0 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/validator/v10 v10.14.0 // indirect
+	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/leodido/go-urn v1.2.4 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
+	github.com/ugorji/go/codec v1.2.11 // indirect
+	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b // indirect
+	golang.org/x/arch v0.3.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)

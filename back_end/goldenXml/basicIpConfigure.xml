@@ -1,0 +1,36 @@
+<edit-config>
+  <target>
+    <running/>
+  </target>
+  <config>
+    <interfaces xmlns="urn:ietf:params:xml:ns:yang:ietf-interfaces">
+      <interface>
+        <name>inband</name>
+        <ipv4 xmlns="urn:ietf:params:xml:ns:yang:ietf-ip">
+          <address>
+            <ip>{{.IpAddr}}</ip>
+            <netmask>{{.NetMask}}</netmask>
+          </address>
+        </ipv4>
+      </interface>
+    </interfaces>
+    <routing xmlns="urn:ietf:params:xml:ns:yang:ietf-routing">
+      <control-plane-protocols>
+        <control-plane-protocol>
+          <type>static</type>
+          <name>inband</name>
+          <static-routes>
+            <ipv4 xmlns="urn:ietf:params:xml:ns:yang:ietf-ipv4-unicast-routing">
+              <route>
+                <destination-prefix>0.0.0.0/0</destination-prefix>
+                <next-hop>
+                  <next-hop-address>{{.GateWay}}</next-hop-address>
+                </next-hop>
+              </route>
+            </ipv4>
+          </static-routes>
+        </control-plane-protocol>
+      </control-plane-protocols>
+    </routing>
+  </config>
+</edit-config>
