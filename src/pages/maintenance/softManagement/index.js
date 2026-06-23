@@ -16,9 +16,13 @@ import Label, {LabelHelpIcon} from '@nokia-csf-uxr/ccfk/Label';
 import Tooltip from '@nokia-csf-uxr/ccfk/Tooltip';
 import HelpCircleIcon from '@nokia-csf-uxr/ccfk-assets/HelpCircleIcon';
 import { toast } from 'react-toastify';
-import {OLT_PORT_NAME} from '../../../global'
+import { toast } from 'react-toastify';
 import { updateOltInfor } from '../../../actions/global'
-import { Axios } from 'axios';
+import {
+  parseOltCardSoftwareInfo,
+  parseOltSoftwareInfo,
+  getHostName as resolveHostName,
+} from '../../../utils/softwareUpgrade';
 const RESULT2 = {
   "XMLName": {
     "Space": "",
@@ -388,127 +392,13 @@ class SoftManagementSystemPage extends Component {
     });
   }
   getHostName(port){
-    let name =""
-    if(this.props.oltInfo.type.startsWith("DF")){
-      name =this.props.oltInfo.type
-    }else{
-      name = this.props.oltInfo.type + "("+ OLT_PORT_NAME[port] + ")"
-    }
-    return name
+    return resolveHostName(this.props.oltInfo.type, port)
   }
   resolveOltSoftwareInfo(data){
-    let list = []
-    Object.keys(data).map(key => {
-      // console.log("resolveOltCardSoftwareInfo    key = ",key)
-      // console.log("resolveOltCardSoftwareInfo value = ",data[key])
-      let info = {
-        id: '',
-        ip: '',
-        hostname:'',
-        version1: {
-          name:'',
-          release:"",
-          valid:false,
-          active:false,
-          commit:false,
-          timestamp:""
-        },
-        version2: {
-          name:'',
-          release:"",
-          valid:false,
-          active:false,
-          commit:false,
-          timestamp:""
-        },
-        download_status: '',
-        download_result: ''
-      }
-      let tmp = utils.isTestDataUsed() ? data[key] :JSON.parse(data[key])
-      info.id = tmp.Ip+tmp.Port
-      info.ip = tmp.Ip
-      info.hostname = this.getHostName(tmp.Port)
-      info.port = tmp.Port
-      info.version1.name = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].Name
-      info.version1.release = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].Version
-      info.version1.valid = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsValid === "true" ? true : false
-      info.version1.active = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsActive === "true" ? true : false
-      info.version1.commit = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsCommitted === "true" ? true : false
-      info.version1.timestamp = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].DownloadTimestamp
-      if(tmp.HardwareState.Component.Software.Software.Revisions.Revision.length>1){
-        info.version2.name = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].Name
-        info.version2.release = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].Version
-        info.version2.valid = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsValid === "true" ? true : false
-        info.version2.active = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsActive === "true" ? true : false
-        info.version2.commit = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsCommitted === "true" ? true : false
-        info.version2.timestamp = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].DownloadTimestamp
-      }
-      info.download_status = tmp.HardwareState.Component.Software.Software.Download.CurrentState.State
-      info.download_result = tmp.HardwareState.Component.Software.Software.Download.CurrentState.State ==="idle"
-      ?tmp.HardwareState.Component.Software.Software.Download.LastDownloadState.State
-      :tmp.HardwareState.Component.Software.Software.Download.CurrentState.State
-      // console.log("info = ",info)
-      list.push(info)
-    })
-    return list
+    return parseOltSoftwareInfo(data, this.props.oltInfo.type)
   }
   resolveOltCardSoftwareInfo(data){
-    console.log("resolveOltCardSoftwareInfo  data = ",data)
-    let info = {
-      id: '',
-      ip: '',
-      hostname:'',
-      version1: {
-        name:'',
-        release:"",
-        valid:false,
-        active:false,
-        commit:false,
-        timestamp:""
-      },
-      version2: {
-        name:'',
-        release:"",
-        valid:false,
-        active:false,
-        commit:false,
-        timestamp:""
-      },
-      download_status: '',
-      download_result: '',
-      config_download_status: '',
-      config_download_result: '',
-    }
-    // let tmp = utils.isTestDataUsed() ? data :JSON.parse(data)
-    let tmp = data
-    info.id = tmp.Ip+tmp.Port
-    info.ip = tmp.Ip
-    info.hostname = this.getHostName(tmp.Port)
-    info.port = tmp.Port
-    info.version1.name = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].Name
-    info.version1.release = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].Version
-    info.version1.valid = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsValid === "true" ? true : false
-    info.version1.active = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsActive === "true" ? true : false
-    info.version1.commit = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].IsCommitted === "true" ? true : false
-    info.version1.timestamp = tmp.HardwareState.Component.Software.Software.Revisions.Revision[0].DownloadTimestamp
-    if(tmp.HardwareState.Component.Software.Software.Revisions.Revision.length>1){
-      info.version2.name = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].Name
-      info.version2.release = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].Version
-      info.version2.valid = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsValid === "true" ? true : false
-      info.version2.active = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsActive === "true" ? true : false
-      info.version2.commit = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].IsCommitted === "true" ? true : false
-      info.version2.timestamp = tmp.HardwareState.Component.Software.Software.Revisions.Revision[1].DownloadTimestamp
-    }
-    info.download_status = tmp.HardwareState.Component.Software.Software.Download.CurrentState.State
-    info.download_result = tmp.HardwareState.Component.Software.Software.Download.CurrentState.State ==="idle"
-      ?tmp.HardwareState.Component.Software.Software.Download.LastDownloadState.State
-      :tmp.HardwareState.Component.Software.Software.Download.CurrentState.State
-    info.config_download_status = tmp.HardwareState.Component.Software.Software.ConfigDownload.CurrentState.State
-    info.config_download_result = tmp.HardwareState.Component.Software.Software.ConfigDownload.CurrentState.State ==="idle"
-      ?tmp.HardwareState.Component.Software.Software.ConfigDownload.LastDownloadState.State
-      :tmp.HardwareState.Component.Software.Software.ConfigDownload.CurrentState.State
-    // console.log("info = ",info)
-    return info
+    return parseOltCardSoftwareInfo(data, this.props.oltInfo.type)
   }
   getOLTsCardSoftware(index){
     console.log("getOLTsCardSoftware   index = ",index)

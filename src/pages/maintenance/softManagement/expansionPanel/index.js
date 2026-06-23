@@ -30,6 +30,7 @@ import utils from "../../../../global/utils"
 import { KEYDOWN, CLICK, ENTER_KEY, SPACE_KEY } from '../../../../global/keybaord';
 import AXIOS from '../../../../axios';
 import {API_SoftwareAction,API_SoftwareMigrationUpload,API_SoftwareMigration } from "../../../../global/API"
+import { getActiveSoftwareName, getCommitSoftwareName } from '../../../../utils/softwareUpgrade';
 
 
 const PADDING = `${SPACING.SPACING_16} ${SPACING.SPACING_24}`;
@@ -217,36 +218,6 @@ const ExpansionPanels = (props) => {
       return false
     }
     return true
-  }
-  const getActiveSoftwareName = (panel)=>{
-    let name = ""
-    let version1 = panel.version1
-    let version2 = panel.version2
-    if(version1.active && version1.commit && !version2.active && !version2.commit && version2.valid){
-      name = version2.name
-    }
-    if(version2.active && version2.commit && !version1.active && !version1.commit && version1.valid){
-      name = version1.name
-    }
-    if(!version1.active && version1.commit && version2.active && !version2.commit && version2.valid){
-      name = version1.name
-    }
-    if(!version2.active && version2.commit && version1.active && !version1.commit && version1.valid){
-      name = version2.name
-    }
-    return name
-  }
-  const getCommitSoftwareName = (panel)=>{
-    let name = ""
-    let version1 = panel.version1
-    let version2 = panel.version2
-    if(!version1.active && version1.commit && version2.active && !version2.commit && version2.valid){
-      name = version2.name
-    }
-    if(!version2.active && version2.commit && version1.active && !version1.commit && version1.valid){
-      name = version1.name
-    }
-    return name
   }
   const handleUploading = (panel)=>{
     console.log("handleUploading     panel = ",panel)

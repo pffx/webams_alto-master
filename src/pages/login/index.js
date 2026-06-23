@@ -165,6 +165,11 @@ class LoginPage extends Component {
               <Typography variant="CAPTION">
                 <span style={{ marginRight: '0.125rem' }}>© {new Date().getFullYear()} NPI </span> |<LanguageSelector/>
               </Typography>
+              <Typography variant="CAPTION" style={{ marginTop: SPACING_12 }}>
+                <a href="/m/login" style={{ color: '#124191', textDecoration: 'none' }}>
+                  {i18n.t('mobile.mobile_entry')}
+                </a>
+              </Typography>
             </SignInFooter>
           </SignInContent>
           <SignInBackground />

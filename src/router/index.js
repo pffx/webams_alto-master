@@ -14,12 +14,13 @@ import MaintenanceRoutes from '../router/maintenance'
 import AlarmLogRoutes from '../router/alarm_log'
 import ServiceRoutes from "../router/service"
 import SystemRoutes from "../router/service"
+import MobileRoutes from '../router/mobile'
 
 const RootRoutesConfig = () => {
   const routes = useRoutes([
   {
-    path:'*',
-    element: <NotFoundPage/>
+    path:'/m/*',
+    element: <MobileRoutes/>
   },
   {
     path:'/',
@@ -81,6 +82,10 @@ const RootRoutesConfig = () => {
         element: <LoginAuth><AlarmLogRoutes/></LoginAuth>,
       },
     ]
+  },
+  {
+    path:'*',
+    element: <NotFoundPage/>
   },
   
   ]);
