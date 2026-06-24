@@ -110,15 +110,73 @@ function getAvailableCards(olt) {
     cards.push({ index: 0, label: olt.type, port: OLT_TYPE_PORT.df });
   } else {
     cards.push({ index: 0, label: 'NT', port: OLT_TYPE_PORT.mf_lt0 });
+    let hasPlannedLt = false;
     if (olt.ltCardStatus) {
       for (let i = 1; i <= 14; i++) {
         if (olt.ltCardStatus[i - 1] === 1) {
+          hasPlannedLt = true;
           cards.push({ index: i, label: 'LT' + i, port: OLT_TYPE_PORT['mf_lt' + i] });
         }
       }
     }
+    if (!hasPlannedLt) {
+      let ltCount = 0;
+      const type = olt.type || '';
+      if (type.startsWith('MF14')) {
+        ltCount = 14;
+      } else if (type.startsWith('MF2')) {
+        ltCount = 2;
+      } else if (olt.ltNum && olt.ltNum > 0) {
+        ltCount = olt.ltNum;
+      }
+      for (let i = 1; i <= ltCount; i++) {
+        cards.push({ index: i, label: 'LT' + i, port: OLT_TYPE_PORT['mf_lt' + i] });
+      }
+    }
   }
   return cards;
+}
+
+function hasActiveUncommittedRevision(panel) {
+  return (panel.version1.valid && panel.version1.active && !panel.version1.commit)
+    || (panel.version2.valid && panel.version2.active && !panel.version2.commit);
+}
+
+function getPreCommitName(panel) {
+  if (getCommitSoftwareName(panel)) {
+    return '';
+  }
+  if (panel.version1.valid && panel.version1.active && !panel.version1.commit) {
+    return panel.version1.name;
+  }
+  if (panel.version2.valid && panel.version2.active && !panel.version2.commit) {
+    return panel.version2.name;
+  }
+  return '';
+}
+
+function resolveUpgradePhase(panel, { downloadedName } = {}) {
+  if (getCommitSoftwareName(panel)) {
+    return 'post_activate_commit';
+  }
+  if (hasActiveUncommittedRevision(panel)) {
+    return 'pre_commit_required';
+  }
+  if (downloadedName) {
+    const rev = panel.version1.name === downloadedName ? panel.version1
+      : panel.version2.name === downloadedName ? panel.version2 : null;
+    if (rev && rev.valid && rev.active && rev.commit) {
+      return 'complete';
+    }
+    if (rev && rev.valid && rev.active && !rev.commit) {
+      return 'post_activate_commit';
+    }
+    if (rev && rev.valid && !rev.active) {
+      return 'ready_for_activate';
+    }
+    return 'ready_for_download';
+  }
+  return 'ready_for_download';
 }
 
 function testGetActiveSoftwareName() {
@@ -197,6 +255,54 @@ function testGetAvailableCards() {
   assert.ok(cards.some((c) => c.label === 'NT'));
   assert.ok(cards.some((c) => c.label === 'LT1'));
   assert.ok(cards.some((c) => c.label === 'LT3'));
+
+  const mf14Fallback = { type: 'MF14', ltCardStatus: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  const fallbackCards = getAvailableCards(mf14Fallback);
+  assert.strictEqual(fallbackCards.length, 15);
+  assert.ok(fallbackCards.some((c) => c.label === 'LT14'));
+
+  const mf2Fallback = { type: 'MF2', ltCardStatus: [0, 0] };
+  const mf2Cards = getAvailableCards(mf2Fallback);
+  assert.strictEqual(mf2Cards.length, 3);
+  assert.ok(mf2Cards.some((c) => c.label === 'LT2'));
+
+  const mfLtNum = { type: 'MF-8', ltNum: 4, ltCardStatus: [0, 0, 0, 0] };
+  const ltNumCards = getAvailableCards(mfLtNum);
+  assert.strictEqual(ltNumCards.length, 5);
+}
+
+function testResolveUpgradePhase() {
+  const preCommitPanel = {
+    version1: { active: true, commit: false, valid: true, name: 'v1' },
+    version2: { active: false, commit: false, valid: false, name: '' },
+  };
+  assert.strictEqual(resolveUpgradePhase(preCommitPanel), 'pre_commit_required');
+  assert.strictEqual(getPreCommitName(preCommitPanel), 'v1');
+
+  const postActivatePanel = {
+    version1: { active: false, commit: true, valid: true, name: 'v1' },
+    version2: { active: true, commit: false, valid: true, name: 'v2' },
+  };
+  assert.strictEqual(resolveUpgradePhase(postActivatePanel), 'post_activate_commit');
+  assert.strictEqual(getPreCommitName(postActivatePanel), '');
+
+  const readyDownloadPanel = {
+    version1: { active: true, commit: true, valid: true, name: 'v1' },
+    version2: { active: false, commit: false, valid: false, name: '' },
+  };
+  assert.strictEqual(resolveUpgradePhase(readyDownloadPanel), 'ready_for_download');
+
+  const readyActivatePanel = {
+    version1: { active: true, commit: true, valid: true, name: 'v1' },
+    version2: { active: false, commit: false, valid: true, name: 'v2' },
+  };
+  assert.strictEqual(resolveUpgradePhase(readyActivatePanel, { downloadedName: 'v2' }), 'ready_for_activate');
+
+  const completePanel = {
+    version1: { active: false, commit: true, valid: true, name: 'v1' },
+    version2: { active: true, commit: true, valid: true, name: 'v2' },
+  };
+  assert.strictEqual(resolveUpgradePhase(completePanel, { downloadedName: 'v2' }), 'complete');
 }
 
 function pollDeviceReadyForCommitMock({
@@ -297,6 +403,7 @@ const tests = [
   testListFirmwareDirsByCard,
   testResolveDownloadPath,
   testGetAvailableCards,
+  testResolveUpgradePhase,
 ];
 
 async function runTests() {

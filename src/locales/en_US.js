@@ -75,9 +75,12 @@ export const en_US = {
         "mobile_entry": "Mobile version",
         "upgrade_title": "Software Upgrade",
         "step_device": "Select Device",
+        "step_version_check": "Version Check",
         "step_firmware": "Select Firmware",
+        "step_pre_commit": "Commit Current",
         "step_download": "Download",
         "step_activate": "Activate",
+        "step_post_commit": "Commit New",
         "step_commit": "Commit",
         "step_done": "Complete",
         "loading": "Loading…",
@@ -117,7 +120,11 @@ export const en_US = {
         "check_now": "Check now",
         "elapsed_wait": "Elapsed {{time}}",
         "upgrade_complete": "Software upgrade completed",
-        "upgrade_another": "Upgrade another"
+        "upgrade_another": "Upgrade another",
+        "pre_commit_required_hint": "The active firmware is not committed. Commit it before upgrading.",
+        "commit_current_version": "Commit current version",
+        "pending_commit_banner": "Detected uncommitted activated firmware ({{name}}). Continue to commit?",
+        "resume_post_commit": "Continue commit"
     }
    
 }

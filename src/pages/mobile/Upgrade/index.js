@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SelectDevice from './steps/SelectDevice';
 import SelectFirmware from './steps/SelectFirmware';
@@ -6,30 +6,121 @@ import DownloadStep from './steps/DownloadStep';
 import ActivateStep from './steps/ActivateStep';
 import CommitStep from './steps/CommitStep';
 import DoneStep from './steps/DoneStep';
-
-const STEPS = ['device', 'firmware', 'download', 'activate', 'commit', 'done'];
+import { saveSession, loadSession, clearSession } from '../../../utils/mobileUpgradeSession';
 
 const STEP_LABEL_KEYS = {
   device: 'mobile.step_device',
-  firmware: 'mobile.step_firmware',
+  version_check: 'mobile.step_version_check',
+  pre_commit: 'mobile.step_pre_commit',
   download: 'mobile.step_download',
   activate: 'mobile.step_activate',
-  commit: 'mobile.step_commit',
+  post_commit: 'mobile.step_post_commit',
 };
+
+const BASE_INDICATOR_STEPS = ['device', 'version_check', 'download', 'activate', 'post_commit'];
 
 function MobileUpgradePage() {
   const { t } = useTranslation();
-  const [stepIndex, setStepIndex] = useState(0);
+  const [currentStep, setCurrentStep] = useState('device');
+  const [showPreCommitInIndicator, setShowPreCommitInIndicator] = useState(false);
+  const [flowMode, setFlowMode] = useState('normal');
   const [deviceSelection, setDeviceSelection] = useState(null);
   const [firmwareSelection, setFirmwareSelection] = useState(null);
   const [downloadResult, setDownloadResult] = useState(null);
   const [activateResult, setActivateResult] = useState(null);
   const [commitResult, setCommitResult] = useState(null);
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
-  const currentStep = STEPS[stepIndex];
+  useEffect(() => {
+    const session = loadSession();
+    if (session) {
+      setHasSession(true);
+      if (session.deviceSelection) {
+        setDeviceSelection(session.deviceSelection);
+      }
+      if (session.firmwareSelection) {
+        setFirmwareSelection(session.firmwareSelection);
+      }
+      if (session.downloadResult) {
+        setDownloadResult(session.downloadResult);
+      }
+      if (session.activateResult) {
+        setActivateResult(session.activateResult);
+      }
+      if (session.commitResult) {
+        setCommitResult(session.commitResult);
+      }
+      if (session.flowMode) {
+        setFlowMode(session.flowMode);
+      }
+      if (session.showPreCommitInIndicator) {
+        setShowPreCommitInIndicator(session.showPreCommitInIndicator);
+      }
+
+      const step = session.currentStep
+        || (session.stepIndex != null ? ['device', 'version_check', 'download', 'activate', 'post_commit', 'done'][session.stepIndex] : null)
+        || (session.activateResult && session.activateResult.needsRebootWait ? 'post_commit' : 'device');
+
+      if (step === 'firmware') {
+        setCurrentStep('version_check');
+      } else if (step === 'commit') {
+        setCurrentStep('post_commit');
+      } else {
+        setCurrentStep(step);
+      }
+    }
+    setSessionRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestored) {
+      return;
+    }
+    if (currentStep === 'device' && !deviceSelection) {
+      return;
+    }
+    saveSession({
+      currentStep,
+      deviceSelection,
+      firmwareSelection,
+      downloadResult,
+      activateResult,
+      commitResult,
+      flowMode,
+      showPreCommitInIndicator,
+    });
+  }, [
+    sessionRestored,
+    currentStep,
+    deviceSelection,
+    firmwareSelection,
+    downloadResult,
+    activateResult,
+    commitResult,
+    flowMode,
+    showPreCommitInIndicator,
+  ]);
+
+  const indicatorSteps = useMemo(() => {
+    if (showPreCommitInIndicator) {
+      return ['device', 'version_check', 'pre_commit', 'download', 'activate', 'post_commit'];
+    }
+    return BASE_INDICATOR_STEPS;
+  }, [showPreCommitInIndicator]);
+
+  const stepIndex = indicatorSteps.indexOf(
+    currentStep === 'pre_commit' ? 'pre_commit'
+      : currentStep === 'post_commit' ? 'post_commit'
+        : currentStep,
+  );
 
   const handleRestart = () => {
-    setStepIndex(0);
+    clearSession();
+    setHasSession(false);
+    setCurrentStep('device');
+    setShowPreCommitInIndicator(false);
+    setFlowMode('normal');
     setDeviceSelection(null);
     setFirmwareSelection(null);
     setDownloadResult(null);
@@ -37,9 +128,13 @@ function MobileUpgradePage() {
     setCommitResult(null);
   };
 
+  const downloadedName = firmwareSelection && firmwareSelection.firmware
+    ? firmwareSelection.firmware.name
+    : '';
+
   const renderStepIndicator = () => (
     <div className="mobile-step-indicator">
-      {STEPS.slice(0, -1).map((step, index) => (
+      {indicatorSteps.map((step, index) => (
         <div
           key={step}
           className={
@@ -62,18 +157,45 @@ function MobileUpgradePage() {
           <SelectDevice
             onNext={(data) => {
               setDeviceSelection(data);
-              setStepIndex(1);
+              setCurrentStep('version_check');
             }}
           />
         );
-      case 'firmware':
+      case 'version_check':
         return (
           <SelectFirmware
             deviceSelection={deviceSelection}
-            onBack={() => setStepIndex(0)}
+            hasSession={hasSession}
+            onBack={() => setCurrentStep('device')}
+            onPreCommit={({ panel }) => {
+              setShowPreCommitInIndicator(true);
+              setFlowMode('pre_commit');
+              setActivateResult({ panel, needsRebootWait: false });
+              setCurrentStep('pre_commit');
+            }}
+            onResumePostCommit={(data) => {
+              setFlowMode('post_activate');
+              setActivateResult(data);
+              setCurrentStep('post_commit');
+            }}
             onNext={(data) => {
               setFirmwareSelection(data);
-              setStepIndex(2);
+              setCurrentStep('download');
+            }}
+          />
+        );
+      case 'pre_commit':
+        return (
+          <CommitStep
+            deviceSelection={deviceSelection}
+            activateResult={activateResult}
+            downloadedName=""
+            flowMode="pre_commit"
+            onBack={() => setCurrentStep('version_check')}
+            onNext={() => {
+              setFlowMode('normal');
+              setActivateResult(null);
+              setCurrentStep('version_check');
             }}
           />
         );
@@ -82,10 +204,10 @@ function MobileUpgradePage() {
           <DownloadStep
             deviceSelection={deviceSelection}
             firmwareSelection={firmwareSelection}
-            onBack={() => setStepIndex(1)}
+            onBack={() => setCurrentStep('version_check')}
             onNext={(data) => {
               setDownloadResult(data);
-              setStepIndex(3);
+              setCurrentStep('activate');
             }}
           />
         );
@@ -94,23 +216,28 @@ function MobileUpgradePage() {
           <ActivateStep
             deviceSelection={deviceSelection}
             downloadResult={downloadResult}
-            onBack={() => setStepIndex(2)}
+            onBack={() => setCurrentStep('download')}
             onNext={(data) => {
               setActivateResult(data);
-              setStepIndex(4);
+              setFlowMode('post_activate');
+              setCurrentStep('post_commit');
             }}
           />
         );
-      case 'commit':
+      case 'post_commit':
         return (
           <CommitStep
             deviceSelection={deviceSelection}
             activateResult={activateResult}
-            downloadedName={firmwareSelection && firmwareSelection.firmware ? firmwareSelection.firmware.name : ''}
-            onBack={() => setStepIndex(3)}
+            downloadedName={downloadedName}
+            flowMode="post_activate"
+            onBack={() => setCurrentStep('activate')}
             onNext={(data) => {
               setCommitResult(data);
-              setStepIndex(5);
+              setFlowMode('normal');
+              clearSession();
+              setHasSession(false);
+              setCurrentStep('done');
             }}
           />
         );

@@ -75,9 +75,12 @@ export const zh_CN = {
         "mobile_entry": "移动端入口",
         "upgrade_title": "软件升级",
         "step_device": "选择设备",
+        "step_version_check": "版本检查",
         "step_firmware": "选择固件",
+        "step_pre_commit": "提交当前版本",
         "step_download": "下载固件",
         "step_activate": "激活固件",
+        "step_post_commit": "提交新版本",
         "step_commit": "提交固件",
         "step_done": "升级完成",
         "loading": "加载中…",
@@ -117,7 +120,11 @@ export const zh_CN = {
         "check_now": "立即检测",
         "elapsed_wait": "已等待 {{time}}",
         "upgrade_complete": "软件升级流程已完成",
-        "upgrade_another": "再次升级"
+        "upgrade_another": "再次升级",
+        "pre_commit_required_hint": "当前激活固件尚未提交，请先提交后再升级。",
+        "commit_current_version": "提交当前版本",
+        "pending_commit_banner": "检测到未提交的激活固件（{{name}}），是否继续提交？",
+        "resume_post_commit": "继续提交"
     }
    
 }

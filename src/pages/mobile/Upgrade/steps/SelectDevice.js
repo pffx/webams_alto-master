@@ -24,6 +24,7 @@ function SelectDevice({ onNext }) {
             hostname: item.HostName,
             status: item.Status === 'Connected' ? 'UP' : 'Down',
             type: item.OltType,
+            ltNum: item.OltLtNum,
             ltCardStatus: utils.generateLTCardPlanned(item),
           }));
           setOlts(list);

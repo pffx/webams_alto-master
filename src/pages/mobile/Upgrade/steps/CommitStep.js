@@ -7,6 +7,7 @@ import { API_SoftwareAction } from '../../../../global/API';
 import {
   buildCommitPayload,
   getPendingCommitName,
+  getPreCommitName,
   fetchOltSoftwareInfo,
   pollDeviceReadyForCommit,
 } from '../../../../utils/softwareUpgrade';
@@ -20,11 +21,20 @@ function formatElapsed(seconds) {
   return String(s) + 's';
 }
 
-function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, onBack }) {
+function CommitStep({
+  deviceSelection,
+  activateResult,
+  downloadedName,
+  flowMode = 'post_activate',
+  onNext,
+  onBack,
+}) {
   const { t } = useTranslation();
   const { olt, card } = deviceSelection;
-  const needsRebootWait = activateResult.needsRebootWait;
-  const [panel, setPanel] = useState(activateResult.panel);
+  const isPreCommit = flowMode === 'pre_commit';
+  const needsRebootWait = !isPreCommit && activateResult && activateResult.needsRebootWait;
+  const titleKey = isPreCommit ? 'mobile.step_pre_commit' : 'mobile.step_post_commit';
+  const [panel, setPanel] = useState(activateResult && activateResult.panel ? activateResult.panel : null);
   const [phase, setPhase] = useState(needsRebootWait ? 'waiting' : 'loading');
   const [commitName, setCommitName] = useState('');
   const [waitConnected, setWaitConnected] = useState(false);
@@ -35,12 +45,19 @@ function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, o
   const stopPollRef = useRef(null);
   const startTimeRef = useRef(Date.now());
 
+  const resolveCommitName = useCallback((freshPanel) => {
+    if (isPreCommit) {
+      return getPreCommitName(freshPanel);
+    }
+    return getPendingCommitName(freshPanel, downloadedName);
+  }, [isPreCommit, downloadedName]);
+
   const applyPanelResult = useCallback((freshPanel) => {
-    const name = getPendingCommitName(freshPanel, downloadedName);
+    const name = resolveCommitName(freshPanel);
     setPanel(freshPanel);
     setCommitName(name);
     setPhase(name ? 'ready' : 'no_commit');
-  }, [downloadedName]);
+  }, [resolveCommitName]);
 
   useEffect(() => {
     if (phase !== 'waiting') {
@@ -105,7 +122,7 @@ function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, o
     fetchOltSoftwareInfo(olt.ip, card.port, olt.type)
       .then((freshPanel) => {
         setChecking(false);
-        const name = getPendingCommitName(freshPanel, downloadedName);
+        const name = resolveCommitName(freshPanel);
         setPanel(freshPanel);
         setWaitConnected(true);
         if (name) {
@@ -163,7 +180,7 @@ function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, o
   if (phase === 'waiting') {
     return (
       <div className="mobile-step">
-        <h2 className="mobile-step__title">{t('mobile.step_commit')}</h2>
+        <h2 className="mobile-step__title">{t(titleKey)}</h2>
 
         <div className="mobile-progress">
           <div className="mobile-progress__bar" />
@@ -196,7 +213,7 @@ function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, o
 
   return (
     <div className="mobile-step">
-      <h2 className="mobile-step__title">{t('mobile.step_commit')}</h2>
+      <h2 className="mobile-step__title">{t(titleKey)}</h2>
 
       {commitName ? (
         <div className="mobile-info-card">

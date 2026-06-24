@@ -151,6 +151,69 @@ export function getPendingCommitName(panel, downloadedName) {
   return '';
 }
 
+function hasActiveUncommittedRevision(panel) {
+  return (panel.version1.valid && panel.version1.active && !panel.version1.commit)
+    || (panel.version2.valid && panel.version2.active && !panel.version2.commit);
+}
+
+/** Pre-upgrade commit: active version not yet committed (excludes post-activate dual-slot pattern). */
+export function getPreCommitName(panel) {
+  if (getCommitSoftwareName(panel)) {
+    return '';
+  }
+  if (panel.version1.valid && panel.version1.active && !panel.version1.commit) {
+    return panel.version1.name;
+  }
+  if (panel.version2.valid && panel.version2.active && !panel.version2.commit) {
+    return panel.version2.name;
+  }
+  return '';
+}
+
+/**
+ * Determine upgrade phase aligned with checkStatus.py state machine.
+ * @returns {'pre_commit_required'|'ready_for_download'|'ready_for_activate'|'post_activate_commit'|'complete'}
+ */
+export function resolveUpgradePhase(panel, { downloadedName } = {}) {
+  if (getCommitSoftwareName(panel)) {
+    return 'post_activate_commit';
+  }
+
+  if (hasActiveUncommittedRevision(panel)) {
+    return 'pre_commit_required';
+  }
+
+  if (downloadedName) {
+    const revision = findRevisionByName(panel, downloadedName);
+    if (revision && revision.valid && revision.active && revision.commit) {
+      return 'complete';
+    }
+    if (revision && revision.valid && revision.active && !revision.commit) {
+      return 'post_activate_commit';
+    }
+    if (revision && revision.valid && !revision.active) {
+      return 'ready_for_activate';
+    }
+    return 'ready_for_download';
+  }
+
+  return 'ready_for_download';
+}
+
+function getMfLtFallbackCount(olt) {
+  const type = olt.type || '';
+  if (type.startsWith('MF14')) {
+    return 14;
+  }
+  if (type.startsWith('MF2')) {
+    return 2;
+  }
+  if (olt.ltNum && olt.ltNum > 0) {
+    return olt.ltNum;
+  }
+  return 0;
+}
+
 /** DF/MF unified: index 0 → NT, index >= 1 → LT */
 export function getCardFirmwareType(card) {
   return card.index >= 1 ? 'LT' : 'NT';
@@ -376,9 +439,11 @@ export function getAvailableCards(olt) {
     cards.push({ index: 0, label: olt.type, port: OLT_TYPE_PORT.df });
   } else {
     cards.push({ index: 0, label: 'NT', port: OLT_TYPE_PORT.mf_lt0 });
+    let hasPlannedLt = false;
     if (olt.ltCardStatus) {
       for (let i = 1; i <= 14; i++) {
         if (olt.ltCardStatus[i - 1] === 1) {
+          hasPlannedLt = true;
           const portKey = 'mf_lt' + i;
           cards.push({
             index: i,
@@ -386,6 +451,17 @@ export function getAvailableCards(olt) {
             port: OLT_TYPE_PORT[portKey],
           });
         }
+      }
+    }
+    if (!hasPlannedLt) {
+      const ltCount = getMfLtFallbackCount(olt);
+      for (let i = 1; i <= ltCount; i++) {
+        const portKey = 'mf_lt' + i;
+        cards.push({
+          index: i,
+          label: 'LT' + i,
+          port: OLT_TYPE_PORT[portKey],
+        });
       }
     }
   }
