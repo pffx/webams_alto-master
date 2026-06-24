@@ -376,6 +376,12 @@
   100% { background-position: -100% 0; }
 }
 
+.mobile-wait-elapsed {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--mobile-text-muted);
+}
+
 .mobile-status--success { color: var(--mobile-success); }
 .mobile-status--failed { color: var(--mobile-error); }
 .mobile-status--in-progress { color: var(--mobile-primary); }

@@ -112,6 +112,10 @@ export const en_US = {
         "commit_success": "Commit successful",
         "commit_failed": "Commit failed",
         "no_commit_needed": "No commit needed",
+        "waiting_reboot": "Device is rebooting, waiting for connection…",
+        "waiting_commit_ready": "Device connected, waiting for firmware state…",
+        "check_now": "Check now",
+        "elapsed_wait": "Elapsed {{time}}",
         "upgrade_complete": "Software upgrade completed",
         "upgrade_another": "Upgrade another"
     }

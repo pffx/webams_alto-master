@@ -315,6 +315,61 @@ export function pollDownloadStatus({ oltIp, port, oltType, onProgress, onComplet
   };
 }
 
+export function pollDeviceReadyForCommit({
+  oltIp,
+  port,
+  oltType,
+  downloadedName,
+  onWaiting,
+  onReady,
+  onTimeout,
+  interval = 15000,
+  timeout = null,
+}) {
+  let timerId = null;
+  let cancelled = false;
+  const startTime = Date.now();
+
+  const poll = () => {
+    if (cancelled) {
+      return;
+    }
+    if (timeout != null && Date.now() - startTime >= timeout) {
+      onTimeout && onTimeout();
+      return;
+    }
+    fetchOltSoftwareInfo(oltIp, port, oltType)
+      .then((panel) => {
+        if (cancelled) {
+          return;
+        }
+        const commitName = getPendingCommitName(panel, downloadedName);
+        if (commitName) {
+          onReady && onReady({ panel, commitName });
+        } else {
+          onWaiting && onWaiting({ connected: true, panel });
+          timerId = setTimeout(poll, interval);
+        }
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        onWaiting && onWaiting({ connected: false, panel: null });
+        timerId = setTimeout(poll, interval);
+      });
+  };
+
+  poll();
+
+  return () => {
+    cancelled = true;
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+  };
+}
+
 export function getAvailableCards(olt) {
   const cards = [];
   if (olt.type && olt.type.startsWith('DF')) {

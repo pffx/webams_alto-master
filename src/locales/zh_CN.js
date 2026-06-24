@@ -112,6 +112,10 @@ export const zh_CN = {
         "commit_success": "提交成功",
         "commit_failed": "提交失败",
         "no_commit_needed": "无需提交",
+        "waiting_reboot": "设备正在重启，等待恢复连接…",
+        "waiting_commit_ready": "设备已连接，等待固件状态就绪…",
+        "check_now": "立即检测",
+        "elapsed_wait": "已等待 {{time}}",
         "upgrade_complete": "软件升级流程已完成",
         "upgrade_another": "再次升级"
     }

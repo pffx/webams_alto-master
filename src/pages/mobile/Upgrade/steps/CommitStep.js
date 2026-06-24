@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import AXIOS from '../../../../axios';
@@ -8,36 +8,120 @@ import {
   buildCommitPayload,
   getPendingCommitName,
   fetchOltSoftwareInfo,
+  pollDeviceReadyForCommit,
 } from '../../../../utils/softwareUpgrade';
+
+function formatElapsed(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m > 0) {
+    return m + ':' + String(s).padStart(2, '0');
+  }
+  return String(s) + 's';
+}
 
 function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, onBack }) {
   const { t } = useTranslation();
   const { olt, card } = deviceSelection;
+  const needsRebootWait = activateResult.needsRebootWait;
   const [panel, setPanel] = useState(activateResult.panel);
-  const [refreshing, setRefreshing] = useState(true);
+  const [phase, setPhase] = useState(needsRebootWait ? 'waiting' : 'loading');
+  const [commitName, setCommitName] = useState('');
+  const [waitConnected, setWaitConnected] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
+  const stopPollRef = useRef(null);
+  const startTimeRef = useRef(Date.now());
+
+  const applyPanelResult = useCallback((freshPanel) => {
+    const name = getPendingCommitName(freshPanel, downloadedName);
+    setPanel(freshPanel);
+    setCommitName(name);
+    setPhase(name ? 'ready' : 'no_commit');
+  }, [downloadedName]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (phase !== 'waiting') {
+      return undefined;
+    }
+    const id = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  useEffect(() => {
+    if (needsRebootWait) {
+      startTimeRef.current = Date.now();
+      stopPollRef.current = pollDeviceReadyForCommit({
+        oltIp: olt.ip,
+        port: card.port,
+        oltType: olt.type,
+        downloadedName,
+        onWaiting: ({ connected, panel: freshPanel }) => {
+          setWaitConnected(connected);
+          if (freshPanel) {
+            setPanel(freshPanel);
+          }
+        },
+        onReady: ({ panel: freshPanel, commitName: name }) => {
+          setPanel(freshPanel);
+          setCommitName(name);
+          setPhase('ready');
+        },
+      });
+    } else {
+      let cancelled = false;
+      fetchOltSoftwareInfo(olt.ip, card.port, olt.type)
+        .then((freshPanel) => {
+          if (!cancelled) {
+            applyPanelResult(freshPanel);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPhase('no_commit');
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    return () => {
+      if (stopPollRef.current) {
+        stopPollRef.current();
+      }
+    };
+  }, [needsRebootWait, olt, card, downloadedName, applyPanelResult]);
+
+  const handleCheckNow = () => {
+    if (checking) {
+      return;
+    }
+    setChecking(true);
     fetchOltSoftwareInfo(olt.ip, card.port, olt.type)
       .then((freshPanel) => {
-        if (!cancelled) {
-          setPanel(freshPanel);
-          setRefreshing(false);
+        setChecking(false);
+        const name = getPendingCommitName(freshPanel, downloadedName);
+        setPanel(freshPanel);
+        setWaitConnected(true);
+        if (name) {
+          if (stopPollRef.current) {
+            stopPollRef.current();
+            stopPollRef.current = null;
+          }
+          setCommitName(name);
+          setPhase('ready');
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setRefreshing(false);
-        }
+        setChecking(false);
+        setWaitConnected(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [olt, card]);
-
-  const commitName = refreshing ? '' : getPendingCommitName(panel, downloadedName);
+  };
 
   const handleCommit = () => {
     if (!commitName) {
@@ -72,8 +156,42 @@ function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, o
     onNext({ panel });
   };
 
-  if (refreshing) {
+  if (phase === 'loading') {
     return <div className="mobile-step-loading">{t('mobile.loading')}</div>;
+  }
+
+  if (phase === 'waiting') {
+    return (
+      <div className="mobile-step">
+        <h2 className="mobile-step__title">{t('mobile.step_commit')}</h2>
+
+        <div className="mobile-progress">
+          <div className="mobile-progress__bar" />
+          <p>
+            {waitConnected
+              ? t('mobile.waiting_commit_ready')
+              : t('mobile.waiting_reboot')}
+          </p>
+          <p className="mobile-wait-elapsed">
+            {t('mobile.elapsed_wait', { time: formatElapsed(elapsedSeconds) })}
+          </p>
+        </div>
+
+        <div className="mobile-actions">
+          <button type="button" className="mobile-btn mobile-btn--secondary" onClick={onBack}>
+            {t('mobile.back')}
+          </button>
+          <button
+            type="button"
+            className="mobile-btn mobile-btn--primary"
+            disabled={checking}
+            onClick={handleCheckNow}
+          >
+            {checking ? t('mobile.processing') : t('mobile.check_now')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

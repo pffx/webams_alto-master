@@ -199,6 +199,96 @@ function testGetAvailableCards() {
   assert.ok(cards.some((c) => c.label === 'LT3'));
 }
 
+function pollDeviceReadyForCommitMock({
+  fetchFn,
+  downloadedName,
+  onWaiting,
+  onReady,
+  interval = 10,
+}) {
+  let cancelled = false;
+  let timerId = null;
+
+  const poll = () => {
+    if (cancelled) {
+      return;
+    }
+    fetchFn()
+      .then((panel) => {
+        if (cancelled) {
+          return;
+        }
+        const name = getPendingCommitName(panel, downloadedName);
+        if (name) {
+          onReady && onReady({ panel, commitName: name });
+        } else {
+          onWaiting && onWaiting({ connected: true, panel });
+          timerId = setTimeout(poll, interval);
+        }
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        onWaiting && onWaiting({ connected: false, panel: null });
+        timerId = setTimeout(poll, interval);
+      });
+  };
+
+  poll();
+
+  return () => {
+    cancelled = true;
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+  };
+}
+
+function testPollDeviceReadyForCommit() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const readyPanel = {
+      version1: { active: false, commit: true, valid: true, name: 'v1' },
+      version2: { active: true, commit: false, valid: true, name: 'v2' },
+    };
+    const waitingEvents = [];
+
+    const cancel = pollDeviceReadyForCommitMock({
+      downloadedName: 'v2',
+      interval: 5,
+      fetchFn: () => new Promise((res, rej) => {
+        attempts += 1;
+        if (attempts < 3) {
+          rej(new Error('connection failed'));
+        } else {
+          res(readyPanel);
+        }
+      }),
+      onWaiting: (event) => waitingEvents.push(event),
+      onReady: ({ commitName }) => {
+        try {
+          assert.strictEqual(attempts, 3);
+          assert.strictEqual(commitName, 'v2');
+          assert.strictEqual(waitingEvents.length, 2);
+          assert.strictEqual(waitingEvents[0].connected, false);
+          assert.strictEqual(waitingEvents[1].connected, false);
+          cancel();
+          resolve();
+        } catch (err) {
+          cancel();
+          reject(err);
+        }
+      },
+    });
+
+    setTimeout(() => {
+      cancel();
+      reject(new Error('pollDeviceReadyForCommit timed out'));
+    }, 2000);
+  });
+}
+
 const tests = [
   testGetActiveSoftwareName,
   testGetCommitSoftwareName,
@@ -208,5 +298,18 @@ const tests = [
   testResolveDownloadPath,
   testGetAvailableCards,
 ];
-tests.forEach((fn) => { fn(); console.log('OK', fn.name); });
-console.log(`\n${tests.length}/${tests.length} tests passed`);
+
+async function runTests() {
+  for (const fn of tests) {
+    fn();
+    console.log('OK', fn.name);
+  }
+  await testPollDeviceReadyForCommit();
+  console.log('OK', 'testPollDeviceReadyForCommit');
+  console.log(`\n${tests.length + 1}/${tests.length + 1} tests passed`);
+}
+
+runTests().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

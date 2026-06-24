@@ -7,7 +7,6 @@ import { API_SoftwareAction } from '../../../../global/API';
 import {
   buildActivePayload,
   getActiveSoftwareName,
-  fetchOltSoftwareInfo,
 } from '../../../../utils/softwareUpgrade';
 
 function ActivateStep({ deviceSelection, downloadResult, onNext, onBack }) {
@@ -21,7 +20,7 @@ function ActivateStep({ deviceSelection, downloadResult, onNext, onBack }) {
 
   const handleActivate = () => {
     if (!activeName) {
-      onNext({ panel });
+      onNext({ panel, needsRebootWait: false });
       return;
     }
 
@@ -35,15 +34,12 @@ function ActivateStep({ deviceSelection, downloadResult, onNext, onBack }) {
         setLoading(false);
         if (res.data.status === GLOBAL.ERROR_NUM.Success) {
           toast.success(t('mobile.activate_success'), TOAST_CONF);
-          fetchOltSoftwareInfo(olt.ip, card.port, olt.type)
-            .then((updatedPanel) => {
-              setStatus('success');
-              onNext({ panel: updatedPanel });
-            })
-            .catch(() => {
-              setStatus('success');
-              onNext({ panel });
-            });
+          setStatus('success');
+          onNext({
+            panel,
+            activatedName: activeName,
+            needsRebootWait: true,
+          });
         } else {
           setStatus('failed');
           setError(t('mobile.activate_failed'));
@@ -57,7 +53,7 @@ function ActivateStep({ deviceSelection, downloadResult, onNext, onBack }) {
   };
 
   const handleSkip = () => {
-    onNext({ panel });
+    onNext({ panel, needsRebootWait: false });
   };
 
   return (
