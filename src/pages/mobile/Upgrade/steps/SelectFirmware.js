@@ -4,16 +4,18 @@ import AXIOS from '../../../../axios';
 import GLOBAL from '../../../../global';
 import { API_ServerSoftware } from '../../../../global/API';
 import {
-  flattenServerSoftware,
+  listTopLevelSoftwareDirs,
+  resolveDownloadPath,
   fetchOltSoftwareInfo,
 } from '../../../../utils/softwareUpgrade';
 
 function SelectFirmware({ deviceSelection, onNext, onBack }) {
   const { t } = useTranslation();
   const { olt, card } = deviceSelection;
-  const [firmwareList, setFirmwareList] = useState([]);
+  const [firmwareDirs, setFirmwareDirs] = useState([]);
   const [panel, setPanel] = useState(null);
-  const [selectedFirmware, setSelectedFirmware] = useState(null);
+  const [selectedDir, setSelectedDir] = useState(null);
+  const [firmwareInput, setFirmwareInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -30,7 +32,7 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
         }
         if (serverRes.data.status === GLOBAL.ERROR_NUM.Success) {
           const folders = JSON.parse(serverRes.data.software_list);
-          setFirmwareList(flattenServerSoftware(folders));
+          setFirmwareDirs(listTopLevelSoftwareDirs(folders));
         }
         setPanel(currentPanel);
         setLoading(false);
@@ -47,12 +49,22 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
     };
   }, [olt, card, t]);
 
+  const canProceed = selectedDir && firmwareInput.trim() && panel;
+
   const handleNext = () => {
-    if (!selectedFirmware || !panel) {
+    if (!canProceed) {
       return;
     }
+    const trimmed = firmwareInput.trim();
+    const { path, name } = resolveDownloadPath(selectedDir.dir, trimmed);
     onNext({
-      firmware: selectedFirmware,
+      firmware: {
+        dir: selectedDir.dir,
+        userInput: trimmed,
+        path,
+        name,
+        label: path + '/' + name,
+      },
       panel,
     });
   };
@@ -90,24 +102,34 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
         </div>
       )}
 
-      <p className="mobile-step__hint">{t('mobile.select_firmware')}</p>
+      <p className="mobile-step__hint">{t('mobile.select_firmware_dir')}</p>
       <div className="mobile-list mobile-list--scroll">
-        {firmwareList.length === 0 ? (
+        {firmwareDirs.length === 0 ? (
           <div className="mobile-empty">{t('mobile.no_firmware')}</div>
         ) : (
-          firmwareList.map((fw) => (
+          firmwareDirs.map((fw) => (
             <button
-              key={fw.label}
+              key={fw.dir}
               type="button"
-              className={'mobile-list-item' + (selectedFirmware && selectedFirmware.label === fw.label ? ' mobile-list-item--selected' : '')}
-              onClick={() => setSelectedFirmware(fw)}
+              className={'mobile-list-item' + (selectedDir && selectedDir.dir === fw.dir ? ' mobile-list-item--selected' : '')}
+              onClick={() => setSelectedDir(fw)}
             >
-              <span className="mobile-list-item__title">{fw.name}</span>
-              <span className="mobile-list-item__meta">{fw.path}</span>
+              <span className="mobile-list-item__title">{fw.dir}</span>
             </button>
           ))
         )}
       </div>
+
+      <label className="mobile-field">
+        <span className="mobile-field__label">{t('mobile.firmware_name_input')}</span>
+        <input
+          className="mobile-field__input"
+          type="text"
+          value={firmwareInput}
+          onChange={(e) => setFirmwareInput(e.target.value)}
+          placeholder={t('mobile.firmware_name_placeholder')}
+        />
+      </label>
 
       <div className="mobile-actions">
         <button type="button" className="mobile-btn mobile-btn--secondary" onClick={onBack}>
@@ -116,7 +138,7 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
         <button
           type="button"
           className="mobile-btn mobile-btn--primary"
-          disabled={!selectedFirmware}
+          disabled={!canProceed}
           onClick={handleNext}
         >
           {t('mobile.next')}

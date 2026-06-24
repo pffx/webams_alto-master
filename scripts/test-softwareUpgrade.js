@@ -59,6 +59,32 @@ function flattenServerSoftware(tree, basePath = '') {
   return result;
 }
 
+function listTopLevelSoftwareDirs(tree) {
+  const result = [];
+  if (!tree || typeof tree !== 'object') return result;
+  Object.keys(tree).forEach((key) => {
+    const value = tree[key];
+    if (typeof value === 'object' && value !== null) {
+      result.push({ label: key, dir: key });
+    }
+  });
+  return result;
+}
+
+function resolveDownloadPath(selectedDir, userInput) {
+  const trimmed = (userInput || '').trim();
+  if (!trimmed) {
+    return { path: selectedDir, name: '' };
+  }
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/');
+    const name = parts[parts.length - 1];
+    const subPath = parts.slice(0, -1).join('/');
+    return { path: selectedDir + '/' + subPath, name };
+  }
+  return { path: selectedDir, name: trimmed };
+}
+
 const OLT_TYPE_PORT = {
   df: 830,
   mf_lt0: 832,
@@ -110,6 +136,29 @@ function testFlattenServerSoftware() {
   assert.ok(flat.some((f) => f.name === 'L6GQAG2203'));
 }
 
+function testListTopLevelSoftwareDirs() {
+  const tree = {
+    lightspan_2209: { L6GQAG: { L6GQAG2209: '...' } },
+    lightspan_2203: { L6GQAG: { L6GQAG2203: '...' } },
+    loose_file: 'direct-url',
+  };
+  const dirs = listTopLevelSoftwareDirs(tree);
+  assert.strictEqual(dirs.length, 2);
+  assert.ok(dirs.some((d) => d.dir === 'lightspan_2209'));
+  assert.ok(dirs.some((d) => d.dir === 'lightspan_2203'));
+  assert.ok(!dirs.some((d) => d.dir === 'loose_file'));
+}
+
+function testResolveDownloadPath() {
+  const withSubpath = resolveDownloadPath('lightspan_2209.422', 'L6GQAG/L6GQAG2209.422');
+  assert.strictEqual(withSubpath.path, 'lightspan_2209.422/L6GQAG');
+  assert.strictEqual(withSubpath.name, 'L6GQAG2209.422');
+
+  const filenameOnly = resolveDownloadPath('lightspan_2203.038', 'L6GQAG2203.038');
+  assert.strictEqual(filenameOnly.path, 'lightspan_2203.038');
+  assert.strictEqual(filenameOnly.name, 'L6GQAG2203.038');
+}
+
 function testGetAvailableCards() {
   assert.strictEqual(getAvailableCards({ type: 'DF-16' }).length, 1);
   const mfOlt = { type: 'MF-14', ltCardStatus: [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
@@ -119,6 +168,13 @@ function testGetAvailableCards() {
   assert.ok(cards.some((c) => c.label === 'LT3'));
 }
 
-const tests = [testGetActiveSoftwareName, testGetCommitSoftwareName, testFlattenServerSoftware, testGetAvailableCards];
+const tests = [
+  testGetActiveSoftwareName,
+  testGetCommitSoftwareName,
+  testFlattenServerSoftware,
+  testListTopLevelSoftwareDirs,
+  testResolveDownloadPath,
+  testGetAvailableCards,
+];
 tests.forEach((fn) => { fn(); console.log('OK', fn.name); });
 console.log(`\n${tests.length}/${tests.length} tests passed`);

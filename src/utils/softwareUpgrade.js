@@ -156,6 +156,34 @@ export function flattenServerSoftware(tree, basePath = '') {
   return result;
 }
 
+export function listTopLevelSoftwareDirs(tree) {
+  const result = [];
+  if (!tree || typeof tree !== 'object') {
+    return result;
+  }
+  Object.keys(tree).forEach((key) => {
+    const value = tree[key];
+    if (typeof value === 'object' && value !== null) {
+      result.push({ label: key, dir: key });
+    }
+  });
+  return result;
+}
+
+export function resolveDownloadPath(selectedDir, userInput) {
+  const trimmed = (userInput || '').trim();
+  if (!trimmed) {
+    return { path: selectedDir, name: '' };
+  }
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/');
+    const name = parts[parts.length - 1];
+    const subPath = parts.slice(0, -1).join('/');
+    return { path: selectedDir + '/' + subPath, name };
+  }
+  return { path: selectedDir, name: trimmed };
+}
+
 export function buildDownloadPayload(panel, path, name) {
   return {
     oltId: panel.ip,
