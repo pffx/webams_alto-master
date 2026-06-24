@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import AXIOS from '../../../../axios';
@@ -6,17 +6,38 @@ import GLOBAL, { TOAST_CONF } from '../../../../global';
 import { API_SoftwareAction } from '../../../../global/API';
 import {
   buildCommitPayload,
-  getCommitSoftwareName,
+  getPendingCommitName,
   fetchOltSoftwareInfo,
 } from '../../../../utils/softwareUpgrade';
 
-function CommitStep({ deviceSelection, activateResult, onNext, onBack }) {
+function CommitStep({ deviceSelection, activateResult, downloadedName, onNext, onBack }) {
   const { t } = useTranslation();
   const { olt, card } = deviceSelection;
-  const panel = activateResult.panel;
-  const commitName = getCommitSoftwareName(panel);
+  const [panel, setPanel] = useState(activateResult.panel);
+  const [refreshing, setRefreshing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchOltSoftwareInfo(olt.ip, card.port, olt.type)
+      .then((freshPanel) => {
+        if (!cancelled) {
+          setPanel(freshPanel);
+          setRefreshing(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRefreshing(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [olt, card]);
+
+  const commitName = refreshing ? '' : getPendingCommitName(panel, downloadedName);
 
   const handleCommit = () => {
     if (!commitName) {
@@ -47,9 +68,13 @@ function CommitStep({ deviceSelection, activateResult, onNext, onBack }) {
       });
   };
 
-  const handleSkip = () => {
+  const handleContinue = () => {
     onNext({ panel });
   };
+
+  if (refreshing) {
+    return <div className="mobile-step-loading">{t('mobile.loading')}</div>;
+  }
 
   return (
     <div className="mobile-step">
@@ -80,8 +105,8 @@ function CommitStep({ deviceSelection, activateResult, onNext, onBack }) {
             {loading ? t('mobile.processing') : t('button.commit')}
           </button>
         ) : (
-          <button type="button" className="mobile-btn mobile-btn--primary" onClick={handleSkip}>
-            {t('mobile.skip')}
+          <button type="button" className="mobile-btn mobile-btn--primary" onClick={handleContinue}>
+            {t('mobile.continue_no_commit')}
           </button>
         )}
       </div>

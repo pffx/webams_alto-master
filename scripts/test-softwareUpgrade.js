@@ -59,30 +59,42 @@ function flattenServerSoftware(tree, basePath = '') {
   return result;
 }
 
-function listTopLevelSoftwareDirs(tree) {
-  const result = [];
-  if (!tree || typeof tree !== 'object') return result;
-  Object.keys(tree).forEach((key) => {
-    const value = tree[key];
-    if (typeof value === 'object' && value !== null) {
-      result.push({ label: key, dir: key });
-    }
-  });
-  return result;
+function getPendingCommitName(panel, downloadedName) {
+  const fromState = getCommitSoftwareName(panel);
+  if (fromState) return fromState;
+  const rev = panel.version1.name === downloadedName ? panel.version1
+    : panel.version2.name === downloadedName ? panel.version2 : null;
+  if (rev && rev.active && !rev.commit && rev.valid) return downloadedName;
+  return '';
 }
 
-function resolveDownloadPath(selectedDir, userInput) {
-  const trimmed = (userInput || '').trim();
-  if (!trimmed) {
-    return { path: selectedDir, name: '' };
-  }
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/');
-    const name = parts[parts.length - 1];
-    const subPath = parts.slice(0, -1).join('/');
-    return { path: selectedDir + '/' + subPath, name };
-  }
-  return { path: selectedDir, name: trimmed };
+function getCardFirmwareType(card) {
+  return card.index >= 1 ? 'LT' : 'NT';
+}
+
+function firmwareDirHasMatchingFile(branch, dirName) {
+  if (!branch || typeof branch !== 'object') return false;
+  const folder = branch[dirName];
+  if (!folder || typeof folder !== 'object') return false;
+  return Object.prototype.hasOwnProperty.call(folder, dirName);
+}
+
+function listFirmwareDirsByCard(tree, card) {
+  const cardType = getCardFirmwareType(card);
+  const branch = tree[cardType];
+  if (!branch || typeof branch !== 'object') return [];
+  return Object.keys(branch)
+    .filter((key) => typeof branch[key] === 'object' && branch[key] !== null)
+    .map((dir) => ({
+      dir,
+      label: cardType + '/' + dir,
+      cardType,
+      valid: firmwareDirHasMatchingFile(branch, dir),
+    }));
+}
+
+function resolveDownloadPath(cardType, selectedDir) {
+  return { path: cardType + '/' + selectedDir, name: selectedDir };
 }
 
 const OLT_TYPE_PORT = {
@@ -136,27 +148,46 @@ function testFlattenServerSoftware() {
   assert.ok(flat.some((f) => f.name === 'L6GQAG2203'));
 }
 
-function testListTopLevelSoftwareDirs() {
-  const tree = {
-    lightspan_2209: { L6GQAG: { L6GQAG2209: '...' } },
-    lightspan_2203: { L6GQAG: { L6GQAG2203: '...' } },
-    loose_file: 'direct-url',
+function testGetPendingCommitName() {
+  const panel = {
+    version1: { active: true, commit: true, valid: true, name: 'v1' },
+    version2: { active: true, commit: false, valid: true, name: 'v2' },
   };
-  const dirs = listTopLevelSoftwareDirs(tree);
-  assert.strictEqual(dirs.length, 2);
-  assert.ok(dirs.some((d) => d.dir === 'lightspan_2209'));
-  assert.ok(dirs.some((d) => d.dir === 'lightspan_2203'));
-  assert.ok(!dirs.some((d) => d.dir === 'loose_file'));
+  assert.strictEqual(getPendingCommitName(panel, 'v2'), 'v2');
+}
+
+function testListFirmwareDirsByCard() {
+  const tree = {
+    NT: {
+      L6GQAG2209: { L6GQAG2209: 'L6GQAG2209' },
+      broken: { other: 'x' },
+    },
+    LT: {
+      L6GQAG2210: { L6GQAG2210: 'L6GQAG2210' },
+    },
+  };
+  const ntDirs = listFirmwareDirsByCard(tree, { index: 0, label: 'NT' });
+  assert.strictEqual(ntDirs.length, 2);
+  assert.ok(ntDirs.find((d) => d.dir === 'L6GQAG2209').valid);
+  assert.ok(!ntDirs.find((d) => d.dir === 'broken').valid);
+
+  const ltDirs = listFirmwareDirsByCard(tree, { index: 1, label: 'LT1' });
+  assert.strictEqual(ltDirs.length, 1);
+  assert.strictEqual(ltDirs[0].label, 'LT/L6GQAG2210');
+
+  const dfDirs = listFirmwareDirsByCard(tree, { index: 0, label: 'DF-16' });
+  assert.strictEqual(dfDirs.length, 2);
+  assert.strictEqual(getCardFirmwareType({ index: 0 }), 'NT');
 }
 
 function testResolveDownloadPath() {
-  const withSubpath = resolveDownloadPath('lightspan_2209.422', 'L6GQAG/L6GQAG2209.422');
-  assert.strictEqual(withSubpath.path, 'lightspan_2209.422/L6GQAG');
-  assert.strictEqual(withSubpath.name, 'L6GQAG2209.422');
+  const nt = resolveDownloadPath('NT', 'L6GQAG2209.421');
+  assert.strictEqual(nt.path, 'NT/L6GQAG2209.421');
+  assert.strictEqual(nt.name, 'L6GQAG2209.421');
 
-  const filenameOnly = resolveDownloadPath('lightspan_2203.038', 'L6GQAG2203.038');
-  assert.strictEqual(filenameOnly.path, 'lightspan_2203.038');
-  assert.strictEqual(filenameOnly.name, 'L6GQAG2203.038');
+  const lt = resolveDownloadPath('LT', 'L6GQAG2209.421');
+  assert.strictEqual(lt.path, 'LT/L6GQAG2209.421');
+  assert.strictEqual(lt.name, 'L6GQAG2209.421');
 }
 
 function testGetAvailableCards() {
@@ -171,8 +202,9 @@ function testGetAvailableCards() {
 const tests = [
   testGetActiveSoftwareName,
   testGetCommitSoftwareName,
+  testGetPendingCommitName,
   testFlattenServerSoftware,
-  testListTopLevelSoftwareDirs,
+  testListFirmwareDirsByCard,
   testResolveDownloadPath,
   testGetAvailableCards,
 ];

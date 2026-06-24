@@ -4,7 +4,7 @@ import AXIOS from '../../../../axios';
 import GLOBAL from '../../../../global';
 import { API_ServerSoftware } from '../../../../global/API';
 import {
-  listTopLevelSoftwareDirs,
+  listFirmwareDirsByCard,
   resolveDownloadPath,
   fetchOltSoftwareInfo,
 } from '../../../../utils/softwareUpgrade';
@@ -15,7 +15,6 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
   const [firmwareDirs, setFirmwareDirs] = useState([]);
   const [panel, setPanel] = useState(null);
   const [selectedDir, setSelectedDir] = useState(null);
-  const [firmwareInput, setFirmwareInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,7 +31,7 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
         }
         if (serverRes.data.status === GLOBAL.ERROR_NUM.Success) {
           const folders = JSON.parse(serverRes.data.software_list);
-          setFirmwareDirs(listTopLevelSoftwareDirs(folders));
+          setFirmwareDirs(listFirmwareDirsByCard(folders, card));
         }
         setPanel(currentPanel);
         setLoading(false);
@@ -49,18 +48,17 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
     };
   }, [olt, card, t]);
 
-  const canProceed = selectedDir && firmwareInput.trim() && panel;
+  const canProceed = selectedDir && selectedDir.valid && panel;
 
   const handleNext = () => {
     if (!canProceed) {
       return;
     }
-    const trimmed = firmwareInput.trim();
-    const { path, name } = resolveDownloadPath(selectedDir.dir, trimmed);
+    const { path, name } = resolveDownloadPath(selectedDir.cardType, selectedDir.dir);
     onNext({
       firmware: {
         dir: selectedDir.dir,
-        userInput: trimmed,
+        cardType: selectedDir.cardType,
         path,
         name,
         label: path + '/' + name,
@@ -109,27 +107,24 @@ function SelectFirmware({ deviceSelection, onNext, onBack }) {
         ) : (
           firmwareDirs.map((fw) => (
             <button
-              key={fw.dir}
+              key={fw.label}
               type="button"
-              className={'mobile-list-item' + (selectedDir && selectedDir.dir === fw.dir ? ' mobile-list-item--selected' : '')}
-              onClick={() => setSelectedDir(fw)}
+              disabled={!fw.valid}
+              className={
+                'mobile-list-item' +
+                (selectedDir && selectedDir.dir === fw.dir ? ' mobile-list-item--selected' : '') +
+                (!fw.valid ? ' mobile-list-item--disabled' : '')
+              }
+              onClick={() => fw.valid && setSelectedDir(fw)}
             >
-              <span className="mobile-list-item__title">{fw.dir}</span>
+              <span className="mobile-list-item__title">{fw.label}</span>
+              {!fw.valid && (
+                <span className="mobile-list-item__meta">{t('mobile.firmware_file_missing')}</span>
+              )}
             </button>
           ))
         )}
       </div>
-
-      <label className="mobile-field">
-        <span className="mobile-field__label">{t('mobile.firmware_name_input')}</span>
-        <input
-          className="mobile-field__input"
-          type="text"
-          value={firmwareInput}
-          onChange={(e) => setFirmwareInput(e.target.value)}
-          placeholder={t('mobile.firmware_name_placeholder')}
-        />
-      </label>
 
       <div className="mobile-actions">
         <button type="button" className="mobile-btn mobile-btn--secondary" onClick={onBack}>

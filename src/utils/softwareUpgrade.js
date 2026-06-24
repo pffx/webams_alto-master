@@ -126,6 +126,63 @@ export function getCommitSoftwareName(panel) {
   return name;
 }
 
+function findRevisionByName(panel, name) {
+  if (!name) {
+    return null;
+  }
+  if (panel.version1.name === name) {
+    return panel.version1;
+  }
+  if (panel.version2.name === name) {
+    return panel.version2;
+  }
+  return null;
+}
+
+export function getPendingCommitName(panel, downloadedName) {
+  const fromState = getCommitSoftwareName(panel);
+  if (fromState) {
+    return fromState;
+  }
+  const revision = findRevisionByName(panel, downloadedName);
+  if (revision && revision.active && !revision.commit && revision.valid) {
+    return downloadedName;
+  }
+  return '';
+}
+
+/** DF/MF unified: index 0 → NT, index >= 1 → LT */
+export function getCardFirmwareType(card) {
+  return card.index >= 1 ? 'LT' : 'NT';
+}
+
+export function firmwareDirHasMatchingFile(branch, dirName) {
+  if (!branch || typeof branch !== 'object') {
+    return false;
+  }
+  const folder = branch[dirName];
+  if (!folder || typeof folder !== 'object') {
+    return false;
+  }
+  return Object.prototype.hasOwnProperty.call(folder, dirName);
+}
+
+export function listFirmwareDirsByCard(tree, card) {
+  const cardType = getCardFirmwareType(card);
+  const branch = tree[cardType];
+  if (!branch || typeof branch !== 'object') {
+    return [];
+  }
+  return Object.keys(branch)
+    .filter((key) => typeof branch[key] === 'object' && branch[key] !== null)
+    .map((dir) => ({
+      dir,
+      label: cardType + '/' + dir,
+      cardType,
+      valid: firmwareDirHasMatchingFile(branch, dir),
+    }));
+}
+
 export function flattenServerSoftware(tree, basePath = '') {
   const result = [];
   if (!tree || typeof tree !== 'object') {
@@ -170,18 +227,11 @@ export function listTopLevelSoftwareDirs(tree) {
   return result;
 }
 
-export function resolveDownloadPath(selectedDir, userInput) {
-  const trimmed = (userInput || '').trim();
-  if (!trimmed) {
-    return { path: selectedDir, name: '' };
-  }
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/');
-    const name = parts[parts.length - 1];
-    const subPath = parts.slice(0, -1).join('/');
-    return { path: selectedDir + '/' + subPath, name };
-  }
-  return { path: selectedDir, name: trimmed };
+export function resolveDownloadPath(cardType, selectedDir) {
+  return {
+    path: cardType + '/' + selectedDir,
+    name: selectedDir,
+  };
 }
 
 export function buildDownloadPayload(panel, path, name) {
