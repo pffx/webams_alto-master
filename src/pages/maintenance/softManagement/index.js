@@ -16,7 +16,6 @@ import Label, {LabelHelpIcon} from '@nokia-csf-uxr/ccfk/Label';
 import Tooltip from '@nokia-csf-uxr/ccfk/Tooltip';
 import HelpCircleIcon from '@nokia-csf-uxr/ccfk-assets/HelpCircleIcon';
 import { toast } from 'react-toastify';
-import { toast } from 'react-toastify';
 import { updateOltInfor } from '../../../actions/global'
 import {
   parseOltCardSoftwareInfo,
